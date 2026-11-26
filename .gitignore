@@ -1,0 +1,16 @@
+# Game binaries and archives
+*.apk
+*.xapk
+*.zip
+
+# Save files, backups, and generated JSONs
+*.bin
+*.bak
+*.sav
+*.json
+
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
