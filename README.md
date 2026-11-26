@@ -1,6 +1,6 @@
 # The Walking Zombie 2 Save Editor
 
-Python utilities for decrypting, parsing, validating, and re-encrypting *The Walking Zombie 2* save files (`save.bin`).
+Python utilities for decrypting, parsing, validating, and re-encrypting *The Walking Zombie 2* Android save files (`save.bin`).
 
 ## Requirements
 
@@ -23,18 +23,42 @@ Python utilities for decrypting, parsing, validating, and re-encrypting *The Wal
 
 ## Usage
 
+### Prerequisites: Copy `base.apk` and `save.bin`
+
+Copy both files from your Android device into your working directory using either a file manager or `adb`:
+
+1. **`base.apk` (for key extraction):**
+   - **Android 11+ path (accessible via ZArchiver with Shizuku, or root):**
+     `/data/app/~~<random_hash>==/com.aldagames.zombieshooter-<random_hash>==/base.apk`
+   - **Android 10 and older path:**
+     `/data/app/com.aldagames.zombieshooter-<random_hash>/base.apk`
+   - **Alternatives:** Export `base.apk` using an APK extractor app (e.g., MT Manager, ZArchiver, or APK Extractor), or pull it via `adb`:
+     ```bash
+     # Find the exact APK path on your device
+     adb shell pm path com.aldagames.zombieshooter
+
+     # Copy the path ending in base.apk (without the "package:" prefix) and pull it
+     adb pull /data/app/~~<hash>==/com.aldagames.zombieshooter-<hash>==/base.apk base.apk
+     ```
+
+2. **`save.bin` (your game save file):**
+   - **Manual path:**
+     `/storage/emulated/0/Android/data/com.aldagames.zombieshooter/files/save.bin`
+     *(On Android 11+, accessing `Android/data/` requires a file manager with Shizuku/SAF support such as ZArchiver or MT Manager.)*
+   - **Via `adb`:**
+     ```bash
+     adb pull /storage/emulated/0/Android/data/com.aldagames.zombieshooter/files/save.bin save.bin
+     ```
+   - **Always keep a backup copy** of your original `save.bin` before editing.
+
 ### 1. Decrypt `save.bin`
-Place `save.bin` and your `.apk` or `.xapk` in your working directory, then run:
+With `save.bin` and `base.apk` in your working directory, run:
 
 ```bash
-# Auto-detects *.apk and *.xapk in the current directory
 python3 Decrypt/decrypt_to_json.py
-
-# Or pass one or more APK/XAPK paths explicitly
-python3 Decrypt/decrypt_to_json.py path/to/base.apk
 ```
 
-- **Input:** `save.bin` (in the current directory) + `.apk`/`.xapk`
+- **Input:** `save.bin` + `base.apk`
 - **Output:** `save_decrypted.json`
 
 ### 2. Convert to Editable JSON
@@ -44,11 +68,11 @@ Parse the raw decrypted stream into a structured JSON file:
 python3 Decrypt/clean_decrypted_json.py
 ```
 
-- **CLI Arguments:** None
 - **Input:** `save_decrypted.json`
 - **Output:** `save_clean.json`
 
-Edit only the values inside the `"data"` object (such as `UserName`, `Level`, `Xp`, `CoinsGold`, `CoinsSilver`, `Gas`, `FreeSkillsPoints`, `FreePerksPoints`). **Do not modify `"_meta"`**—it preserves byte-level formatting so unchanged fields are restored verbatim.
+Edit only the values inside the `"data"` object (such as `UserName`, `Level`, `Xp`, `CoinsGold`, `CoinsSilver`, `Gas`, `FreeSkillsPoints`, `FreePerksPoints`).
+**Do not modify `"_meta"`**—it preserves byte-level formatting so unchanged fields are restored verbatim.
 
 ### 3. Validate Your Edits
 Check your edited JSON for syntax, type safety, and binary rebuild compatibility:
@@ -57,9 +81,7 @@ Check your edited JSON for syntax, type safety, and binary rebuild compatibility
 python3 Encrypt/check_edited_json.py
 ```
 
-- **CLI Arguments:** None (interactive prompt)
-  - `Enter path to JSON file to check [save_clean.json]:`
-- **Exit Codes:** `0` if valid, `1` if errors are found.
+- Press **Enter** at the prompt to validate `save_clean.json` (or enter a custom path).
 
 ### 4. Re-encrypt to `save.bin`
 Rebuild the binary save and encrypt it with 3DES-ECB (PKCS#7 padding):
@@ -68,7 +90,16 @@ Rebuild the binary save and encrypt it with 3DES-ECB (PKCS#7 padding):
 python3 Encrypt/encrypt_save.py
 ```
 
-- **CLI Arguments:** None (interactive prompts)
-  - `Enter path to JSON file to encrypt [save_clean.json]:`
-  - `Enter output encrypted file path [save.bin]:`
-- **Backup:** If the output file already exists (and no `.bak` exists yet), a `<output>.bak` backup is created automatically.
+- Press **Enter** at both prompts to read `save_clean.json` and output `save.bin`.
+- If `save.bin` already exists (and no `.bak` exists yet), a `save.bin.bak` backup is created automatically.
+
+### 5. Restore `save.bin` to Your Device
+Close *The Walking Zombie 2* completely (swipe it from Recent Apps or force-stop it so the background process doesn't overwrite your edited file on autosave), then copy the newly encrypted `save.bin` back to your phone:
+
+- **Manual path:**
+  `/storage/emulated/0/Android/data/com.aldagames.zombieshooter/files/save.bin`
+- **Via `adb`:**
+  ```bash
+  adb shell am force-stop com.aldagames.zombieshooter
+  adb push save.bin /storage/emulated/0/Android/data/com.aldagames.zombieshooter/files/save.bin
+  ```
